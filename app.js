@@ -8,8 +8,13 @@ const DEFAULTS = {
   radius: APP_CONFIG.RADIUS_METER,
   sheetUrl: APP_CONFIG.GOOGLE_SHEET_URL,
   clientId: APP_CONFIG.GOOGLE_CLIENT_ID,
+  supabaseUrl: APP_CONFIG.SUPABASE_URL || "",
+  supabaseKey: APP_CONFIG.SUPABASE_ANON_KEY || "",
+  backendProvider: APP_CONFIG.BACKEND_PROVIDER || "sheets",
   gpsMode: "real"
 };
+
+let supabaseClient = null;
 
 let state = {
   settings: { ...DEFAULTS },
@@ -106,6 +111,18 @@ async function initStorage() {
       }
     } catch (err) {
       console.warn("Gagal menyinkronkan pengaturan dari Google Sheets, menggunakan fallback lokal:", err);
+    }
+  }
+
+  // 4. Inisialisasi Supabase Client jika SDK tersedia dan konfigurasi diisi
+  if (typeof supabase !== "undefined" && state.settings.supabaseUrl && state.settings.supabaseKey) {
+    try {
+      if (state.settings.supabaseUrl.indexOf("YOUR_PROJECT_ID") === -1) {
+        supabaseClient = supabase.createClient(state.settings.supabaseUrl, state.settings.supabaseKey);
+        console.log("Supabase Client berhasil diinisialisasi");
+      }
+    } catch (supaErr) {
+      console.warn("Gagal inisialisasi Supabase Client:", supaErr);
     }
   }
 }
@@ -251,8 +268,32 @@ async function checkSubmissionAndLocation() {
   let alreadySubmitted = false;
   let serverData = null;
 
-  // 1. Cek Server (Google Sheets via Apps Script GET Request)
-  if (sheetUrl) {
+  // 1. Cek Server (Supabase atau Google Sheets)
+  if (supabaseClient) {
+    try {
+      const todayDate = new Date().toISOString().slice(0, 10);
+      const { data, error } = await supabaseClient
+        .from("presensi")
+        .select("nama, nim, created_at")
+        .eq("email", email)
+        .eq("session_date", todayDate)
+        .maybeSingle();
+
+      if (!error && data) {
+        alreadySubmitted = true;
+        serverData = {
+          nama: data.nama,
+          nim: data.nim,
+          waktu: data.created_at
+        };
+      }
+    } catch (supaErr) {
+      console.warn("Gagal cek duplikasi via Supabase, mencoba Google Sheets fallback:", supaErr);
+    }
+  }
+
+  // 1b. Cek Google Sheets jika belum terdeteksi di Supabase dan URL Sheet tersedia
+  if (!alreadySubmitted && sheetUrl) {
     try {
       // Menambahkan parameter query bypass cache
       const checkUrl = `${sheetUrl}?action=checkEmail&email=${encodeURIComponent(email)}&_t=${new Date().getTime()}`;
@@ -271,8 +312,8 @@ async function checkSubmissionAndLocation() {
         alreadySubmitted = true;
       }
     }
-  } else {
-    // Uji lokal jika URL spreadsheet belum diset
+  } else if (!alreadySubmitted && !supabaseClient) {
+    // Uji lokal jika backend belum diset
     const localSubmitted = JSON.parse(localStorage.getItem("polban_submitted_emails") || "[]");
     if (localSubmitted.includes(email)) {
       alreadySubmitted = true;
@@ -603,11 +644,14 @@ function capturePhoto() {
 
   if (!state.cameraStream) { showToast("Kamera tidak aktif!"); return; }
 
-  // Ambil frame dari video ke canvas (tanpa efek mirror — normal apa adanya)
+  // === KOMPRESI SISI CLIENT (RESOLUSI OPTIMAL: 480x360, JPEG QUALITY 0.7) ===
+  // Memangkas ukuran file dari ~2MB menjadi hanya ~40-80KB (90% hemat bandwidth)
   const ctx = canvas.getContext("2d");
-  canvas.width = video.videoWidth || 640;
-  canvas.height = video.videoHeight || 480;
-  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const targetWidth = 480;
+  const targetHeight = 360;
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
 
   state.selfieBase64 = canvas.toDataURL("image/jpeg", 0.7);
 
@@ -691,6 +735,47 @@ function validateForm() {
   return isValid;
 }
 
+// ==========================================================================
+// SUPABASE STORAGE & RPC HANDLER (HIGH-TRAFFIC BACKEND)
+// ==========================================================================
+async function uploadSelfieToStorage(base64Data, nim) {
+  const blob = await (await fetch(base64Data)).blob();
+  const filePath = `${new Date().toISOString().slice(0, 10)}/${nim}_${Date.now()}.jpg`;
+
+  const { data, error } = await supabaseClient.storage
+    .from('selfie-presensi')
+    .upload(filePath, blob, { contentType: 'image/jpeg', cacheControl: '3600', upsert: false });
+
+  if (error) throw error;
+
+  const { data: publicUrlData } = supabaseClient.storage
+    .from('selfie-presensi')
+    .getPublicUrl(filePath);
+
+  return publicUrlData.publicUrl;
+}
+
+async function handleSupabaseSubmit(formData) {
+  // 1. Upload foto terkompresi langsung ke Supabase Storage Bucket via CDN
+  const photoUrl = await uploadSelfieToStorage(formData.selfieBase64, formData.nim);
+
+  // 2. Panggil Stored Procedure yang memverifikasi rumus Haversine di DB
+  const { data, error } = await supabaseClient.rpc('submit_presensi_verified', {
+    p_email: formData.email,
+    p_nama: formData.nama,
+    p_nim: formData.nim,
+    p_jurusan: formData.jurusan,
+    p_prodi: formData.prodi,
+    p_kelas: formData.kelas,
+    p_lat: formData.latitude,
+    p_lng: formData.longitude,
+    p_selfie_url: photoUrl
+  });
+
+  if (error) throw error;
+  return data;
+}
+
 async function handleFormSubmit(e) {
   e.preventDefault();
 
@@ -716,14 +801,48 @@ async function handleFormSubmit(e) {
     longitude: state.userLocation.lng,
     jarak: state.userDistance,
     statusGeofencing: state.isWithinGeofence ? "DALAM AREA" : "LUAR AREA",
-    selfie: state.selfieBase64
+    selfieBase64: state.selfieBase64
   };
 
+  // OPSI 1: JIKA SUPABASE TERHUBUNG (HIGH TRAFFIC PRIORITAS UTAMA)
+  if (supabaseClient) {
+    try {
+      btnSubmit.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Mengunggah ke Supabase...';
+      const result = await handleSupabaseSubmit(payload);
+      
+      if (result && result.status === "success") {
+        saveSuccessToLocal(payload.email);
+        showSuccessView({
+          nama: payload.nama,
+          nim: payload.nim,
+          waktu: new Date().toLocaleString("id-ID") + " WIB"
+        }, false);
+        return;
+      } else {
+        showToast(result.message || "Gagal memverifikasi presensi");
+        btnSubmit.disabled = false;
+        btnSubmit.innerHTML = originalHtml;
+        return;
+      }
+    } catch (supaErr) {
+      console.error("Supabase submit failed:", supaErr);
+      showToast(supaErr.message || "Terjadi kendala saat mengirim ke Supabase.");
+      btnSubmit.disabled = false;
+      btnSubmit.innerHTML = originalHtml;
+      return;
+    }
+  }
+
+  // OPSI 2: FALLBACK KE GOOGLE SHEETS
   const sheetUrl = state.settings.sheetUrl;
 
   if (sheetUrl) {
     try {
-      const response = await fetch(sheetUrl, { method: "POST", mode: "cors", body: JSON.stringify(payload) });
+      const response = await fetch(sheetUrl, { 
+        method: "POST", 
+        mode: "cors", 
+        body: JSON.stringify({ ...payload, selfie: payload.selfieBase64 }) 
+      });
       const result = await response.json();
       
       if (result.status === "success") {
@@ -741,7 +860,12 @@ async function handleFormSubmit(e) {
     } catch (err) {
       console.warn("CORS/Network error, trying fallback:", err);
       try {
-        await fetch(sheetUrl, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload) });
+        await fetch(sheetUrl, { 
+          method: "POST", 
+          mode: "no-cors", 
+          headers: { "Content-Type": "text/plain" }, 
+          body: JSON.stringify({ ...payload, selfie: payload.selfieBase64 }) 
+        });
         saveSuccessToLocal(payload.email);
         showSuccessView({
           nama: payload.nama,
@@ -765,7 +889,7 @@ async function handleFormSubmit(e) {
         nim: payload.nim,
         waktu: new Date().toLocaleString("id-ID") + " WIB"
       }, false);
-      showToast("Tersimpan secara lokal! (URL Sheet belum dikonfigurasi)");
+      showToast("Tersimpan secara lokal! (Backend belum dikonfigurasi)");
     }, 1500);
   }
 }

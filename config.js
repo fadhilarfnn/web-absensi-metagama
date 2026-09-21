@@ -11,10 +11,16 @@
 
 const APP_CONFIG = {
 
-  // ======== 1. GOOGLE SHEETS ========
-  // Masukkan URL Web App dari Google Apps Script yang sudah di-deploy.
-  // Contoh: "https://script.google.com/macros/s/AKfycbxfL.../exec"
+  // ======== 1. BACKEND STORAGE & DATABASE ========
+  // Opsi A: Google Sheets (Google Apps Script Web App URL)
   GOOGLE_SHEET_URL: "https://script.google.com/macros/s/AKfycbxfcEZvqedbxFb2MmqnEVU492UEl4WaQ-Ahenyf8cO2lzo98w20wH7hhztWzkdu6n5snQ/exec",
+
+  // Opsi B: Supabase (High Traffic Scale - Rekomendasi 1000+ Peserta)
+  // Dapatkan URL dan Anon Key dari: Supabase Dashboard -> Project Settings -> API
+  SUPABASE_URL: "https://ceqkhwlbjsikcicrbqjo.supabase.co",
+  SUPABASE_ANON_KEY: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNlcWtod2xianNpa2NpY3JicWpvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5ODE1NTUsImV4cCI6MjEwNTU1NzU1NX0.T0_PeE_ZOTQ3xdTq0ZohIU0N0FkkR9OD39fOhPO5sCw",
+  // Pilih provider backend aktif: "sheets" atau "supabase"
+  BACKEND_PROVIDER: "supabase",
 
   // ======== 2. GOOGLE SIGN-IN CREDENTIALS ========
   // Buat Google Client ID dari Google Cloud Console agar mahasiswa wajib login Google POLBAN.

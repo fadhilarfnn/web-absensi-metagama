@@ -163,18 +163,94 @@
       overflow: hidden;
       border: 1px solid var(--border-input);
       margin-top: 16px;
+      box-shadow: var(--shadow-sm);
     }
     .preview-map-container .map-label {
       background: var(--secondary);
       color: white;
-      padding: 8px 16px;
-      font-size: 0.8rem;
+      padding: 10px 16px;
+      font-size: 0.85rem;
       font-weight: 600;
       display: flex;
       align-items: center;
+      justify-content: space-between;
       gap: 6px;
     }
-    #admin-map { width: 100%; height: 250px; }
+    #admin-map { width: 100%; height: 360px; z-index: 1; }
+
+    /* Admin Modern Navigation Tabs */
+    .admin-nav-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      background: rgba(15, 23, 42, 0.05);
+      padding: 6px;
+      border-radius: var(--radius-md);
+      overflow-x: auto;
+    }
+    .admin-tab-btn {
+      flex: 1;
+      padding: 10px 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: var(--transition-fast);
+      white-space: nowrap;
+    }
+    .admin-tab-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.6);
+    }
+    .admin-tab-btn.active {
+      background: white;
+      color: var(--primary);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    /* Range slider custom */
+    .radius-slider-box {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: rgba(15, 23, 42, 0.02);
+      border: 1px solid var(--border-input);
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+    }
+    .radius-slider-box input[type="range"] {
+      flex: 1;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+    .radius-val-display {
+      font-weight: 700;
+      color: var(--primary);
+      font-size: 1.1rem;
+      min-width: 65px;
+      text-align: right;
+    }
+
+    /* Map Tool Banner */
+    .map-instruction-tip {
+      background: #eff6ff;
+      border-left: 4px solid #3b82f6;
+      color: #1e40af;
+      padding: 10px 14px;
+      font-size: 0.8rem;
+      border-radius: 0 8px 8px 0;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
 
     .content-wrapper { align-items: flex-start; }
     .admin-wrapper {
@@ -207,6 +283,7 @@
     }
     @media(max-width: 480px) {
       .admin-card { padding: 20px; }
+      #admin-map { height: 280px; }
     }
   </style>
 </head>
@@ -375,55 +452,200 @@
           </button>
         </div>
 
-        <!-- ======= CARD 5: Geofencing & Simulasi ======= -->
-        <div class="admin-card">
-          <h4><i class="fa-solid fa-location-crosshairs"></i> Pengaturan Geofencing & Simulasi</h4>
-          
-          <div class="admin-form">
-            <div class="form-group">
-              <label for="cfg-lat">Latitude Target</label>
-              <input type="number" id="cfg-lat" step="0.000001" value="-6.872000">
-            </div>
-            <div class="form-group">
-              <label for="cfg-lng">Longitude Target</label>
-              <input type="number" id="cfg-lng" step="0.000001" value="107.573700">
-            </div>
-            <div class="form-group">
-              <label for="cfg-radius">Radius Pembatas (Meter)</label>
-              <input type="number" id="cfg-radius" min="10" value="50">
-            </div>
-          </div>
-          <div class="helper-text mb-3">Default: <strong>Masjid Luqmanul Hakim POLBAN</strong> (radius 50 meter).</div>
+        <!-- Admin Modern Navigation Tabs -->
+        <nav class="admin-nav-tabs">
+          <button type="button" class="admin-tab-btn active" data-tab="tab-geolocation">
+            <i class="fa-solid fa-map-location-dot"></i> Setup Geolocation & Area
+          </button>
+          <button type="button" class="admin-tab-btn" data-tab="tab-integrations">
+            <i class="fa-solid fa-sliders"></i> Integrasi & Autentikasi
+          </button>
+          <button type="button" class="admin-tab-btn" data-tab="tab-deploy">
+            <i class="fa-solid fa-book-bookmark"></i> Panduan Deploy & Akses
+          </button>
+        </nav>
 
-          <h5 style="font-weight: 600; margin: 16px 0 10px; font-size: 0.9rem;">Simulasi Lokasi (Untuk Pengujian)</h5>
-          <p class="helper-text" style="margin-bottom: 12px;">Gunakan simulasi ini untuk menguji form presensi dari rumah tanpa harus berada di kampus.</p>
-          <div class="simulation-actions">
-            <button id="sim-gps-real" class="btn btn-outline btn-sm active btn-block mb-2">
-              <i class="fa-solid fa-satellite"></i> Gunakan GPS Asli Perangkat
-            </button>
-            <button id="sim-gps-inside" class="btn btn-outline btn-sm btn-block mb-2">
-              <i class="fa-solid fa-circle-check text-success"></i> Paksa Simulasi DI DALAM Radius
-            </button>
-            <button id="sim-gps-outside" class="btn btn-outline btn-sm btn-block">
-              <i class="fa-solid fa-circle-xmark text-danger"></i> Paksa Simulasi DI LUAR Radius
+        <!-- ======= TAB 1: GEOLOCATION & MAP SETUP (FOKUS UTAMA) ======= -->
+        <div id="tab-geolocation" class="admin-tab-content">
+          <div class="admin-card">
+            <h4><i class="fa-solid fa-location-crosshairs"></i> Kalibrasi Geofencing Presisi</h4>
+            <p class="helper-text" style="margin-bottom: 16px;">
+              Tentukan titik koordinat target dan batas radius presensi dengan akurasi tinggi. Mahasiswa diwajibkan berada di dalam lingkaran hijau untuk dapat mengisi absensi.
+            </p>
+
+            <div class="map-instruction-tip">
+              <i class="fa-solid fa-circle-info"></i>
+              <span><strong>Tips Presisi:</strong> Klik langsung di area peta atau <em>drag</em> (geser) pin masjid untuk memindahkan pusat lokasi presensi secara akurat.</span>
+            </div>
+
+            <!-- Interaktif Map Canvas -->
+            <div class="preview-map-container">
+              <div class="map-label">
+                <span><i class="fa-solid fa-satellite-dish"></i> Peta Kalibrasi Real-time</span>
+                <span id="map-target-status" style="font-size: 0.75rem; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 12px;">Masjid LH POLBAN</span>
+              </div>
+              <div id="admin-map"></div>
+            </div>
+
+            <!-- Form Kontrol Radius Visual -->
+            <div class="admin-form" style="margin-top: 20px;">
+              <div class="form-group">
+                <label for="cfg-radius-range">Radius Toleransi Presensi (Meter)</label>
+                <div class="radius-slider-box">
+                  <input type="range" id="cfg-radius-range" min="10" max="250" step="5" value="50">
+                  <span class="radius-val-display" id="radius-val-text">50 m</span>
+                </div>
+                <input type="hidden" id="cfg-radius" value="50">
+              </div>
+
+              <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                  <label for="cfg-lat">Latitude</label>
+                  <input type="number" id="cfg-lat" step="0.000001" value="-6.872000">
+                </div>
+                <div class="form-group">
+                  <label for="cfg-lng">Longitude</label>
+                  <input type="number" id="cfg-lng" step="0.000001" value="107.573700">
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-top: 6px;">
+                <button type="button" id="btn-set-current-target" class="btn btn-outline btn-sm" style="flex: 1; min-width: 220px;">
+                  <i class="fa-solid fa-location-crosshairs text-primary"></i> Ambil Titik GPS Saya Saat Ini
+                </button>
+                <button type="button" id="btn-reset-polban" class="btn btn-outline btn-sm" style="min-width: 150px;">
+                  <i class="fa-solid fa-mosque"></i> Reset Masjid LH
+                </button>
+              </div>
+            </div>
+
+            <!-- Testing Simulasi -->
+            <div style="margin-top: 24px; padding-top: 16px; border-top: 1px dashed var(--border-input);">
+              <h5 style="font-weight: 600; margin-bottom: 8px; font-size: 0.9rem;">
+                <i class="fa-solid fa-vial"></i> Mode Simulasi (Uji Coba Mandiri)
+              </h5>
+              <p class="helper-text" style="margin-bottom: 12px;">Pilih mode simulasi ini untuk menguji halaman mahasiswa dari luar kampus:</p>
+              <div class="simulation-actions">
+                <button type="button" id="sim-gps-real" class="btn btn-outline btn-sm active">
+                  <i class="fa-solid fa-satellite"></i> GPS Asli Perangkat
+                </button>
+                <button type="button" id="sim-gps-inside" class="btn btn-outline btn-sm">
+                  <i class="fa-solid fa-circle-check text-success"></i> Paksa Simulasi DALAM Radius (LOLOS)
+                </button>
+                <button type="button" id="sim-gps-outside" class="btn btn-outline btn-sm">
+                  <i class="fa-solid fa-circle-xmark text-danger"></i> Paksa Simulasi LUAR Radius (DITOLAK)
+                </button>
+              </div>
+            </div>
+
+            <div style="margin-top: 24px;">
+              <button id="btn-save-settings" class="btn btn-primary btn-block">
+                <i class="fa-solid fa-floppy-disk"></i> Terapkan & Simpan Kalibrasi Lokasi
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ======= TAB 2: INTEGRASI (GOOGLE SIGN-IN & GOOGLE SHEETS) ======= -->
+        <div id="tab-integrations" class="admin-tab-content d-none">
+          <!-- CARD: Google Sign In -->
+          <div class="admin-card">
+            <h4><i class="fa-solid fa-key"></i> Integrasi Google OAuth (Client ID)</h4>
+            <p class="helper-text" style="margin-bottom: 16px;">
+              Client ID digunakan untuk memvalidasi bahwa pengisi adalah mahasiswa POLBAN resmi (<code>@polban.ac.id</code>).
+            </p>
+
+            <div class="admin-form">
+              <div class="form-group">
+                <label for="cfg-client-id">Google OAuth Client ID</label>
+                <input type="text" id="cfg-client-id" placeholder="1234567890-xxxx.apps.googleusercontent.com">
+              </div>
+            </div>
+            <div class="helper-text" style="margin-bottom: 16px;">
+              <i class="fa-solid fa-circle-info text-primary"></i> Jika dikosongkan, halaman mahasiswa beralih ke simulasi login lokal.
+            </div>
+            
+            <button id="btn-save-auth" class="btn btn-primary btn-block">
+              <i class="fa-solid fa-floppy-disk"></i> Simpan Client ID
             </button>
           </div>
-          
-          <div style="margin-top: 12px;">
-            <button id="btn-set-current-target" class="btn btn-warning btn-sm btn-block">
-              <i class="fa-solid fa-location-dot"></i> Jadikan Lokasi Saya Sekarang Sebagai Pusat Target
+
+          <!-- CARD: Google Sheets Backend -->
+          <div class="admin-card">
+            <h4><i class="fa-solid fa-table"></i> Integrasi Google Apps Script (Web App URL)</h4>
+            <p class="helper-text" style="margin-bottom: 16px;">
+              Endpoint Google Sheets untuk menerima data rekaman kehadiran dan sinkronisasi setelan.
+            </p>
+
+            <div class="admin-form">
+              <div class="form-group">
+                <label for="cfg-sheet-url">URL Google Apps Script Web App</label>
+                <input type="url" id="cfg-sheet-url" placeholder="https://script.google.com/macros/s/.../exec">
+              </div>
+            </div>
+            
+            <button id="btn-save-sheet-url" class="btn btn-success btn-block">
+              <i class="fa-solid fa-floppy-disk"></i> Simpan Endpoint Sheets
             </button>
           </div>
-          
-          <div class="preview-map-container">
-            <div class="map-label"><i class="fa-solid fa-map-location-dot"></i> Preview Area Geofencing</div>
-            <div id="admin-map"></div>
-          </div>
-          
-          <div style="margin-top: 16px;">
-            <button id="btn-save-settings" class="btn btn-success btn-block">
-              <i class="fa-solid fa-floppy-disk"></i> Simpan Seluruh Pengaturan
+
+          <!-- CARD: Supabase High-Traffic Backend -->
+          <div class="admin-card">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+              <h4 style="margin-bottom: 0;"><i class="fa-solid fa-database text-primary"></i> Integrasi Backend Supabase</h4>
+              <span style="font-size: 0.7rem; font-weight: 700; background: rgba(16, 185, 129, 0.15); color: var(--success); padding: 3px 8px; border-radius: 12px;">High Concurrency (1000+)</span>
+            </div>
+            <p class="helper-text" style="margin-bottom: 16px;">
+              Gunakan Supabase jika ingin performa instan tanpa antrean timeout saat ratusan mahasiswa presensi bersamaan. Panduan lengkap ada di file <code>docs/supabase-md-setup.md</code>.
+            </p>
+
+            <div class="admin-form">
+              <div class="form-group">
+                <label for="cfg-supabase-url">Supabase Project URL</label>
+                <input type="url" id="cfg-supabase-url" placeholder="https://xyzcompany.supabase.co">
+              </div>
+              <div class="form-group">
+                <label for="cfg-supabase-key">Supabase Anon / Public Key</label>
+                <input type="password" id="cfg-supabase-key" placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...">
+              </div>
+            </div>
+            
+            <button id="btn-save-supabase" class="btn btn-primary btn-block">
+              <i class="fa-solid fa-floppy-disk"></i> Simpan Konfigurasi Supabase
             </button>
+          </div>
+        </div>
+
+        <!-- ======= TAB 3: PANDUAN DEPLOY & LINK MAHASISWA ======= -->
+        <div id="tab-deploy" class="admin-tab-content d-none">
+          <!-- CARD: Link Share Mahasiswa -->
+          <div class="admin-card">
+            <h4><i class="fa-solid fa-share-nodes"></i> Tautan Presensi Mahasiswa</h4>
+            <p class="helper-text" style="margin-bottom: 12px;">Tautan ini yang dibagikan ke mahasiswa saat acara berlangsung:</p>
+            
+            <div class="link-box" id="student-link-box">
+              <span class="link-text" id="student-link-text">Mendeteksi URL...</span>
+              <button class="copy-btn" onclick="copyStudentLink()"><i class="fa-solid fa-copy"></i> Salin</button>
+            </div>
+          </div>
+
+          <!-- CARD: Panduan Deploy Cloud -->
+          <div class="admin-card">
+            <h4><i class="fa-solid fa-cloud-arrow-up"></i> Cara Publikasi ke Internet (Hosting)</h4>
+            <p class="helper-text" style="margin-bottom: 16px;">Gunakan layanan hosting gratis untuk mempublikasikan form agar bisa diakses seluruh mahasiswa lewat smartphone:</p>
+
+            <h5 style="font-weight: 700; color: var(--secondary); margin-bottom: 8px;">1. GitHub Pages (Direkomendasikan)</h5>
+            <ol class="step-guide" style="margin-bottom: 20px;">
+              <li><div class="step-content">Repo Anda sudah terhubung ke GitHub: <code>https://github.com/fadhilarfnn/web-absensi-metagama</code></div></li>
+              <li><div class="step-content">Buka repositori di GitHub -> Menu <strong>Settings</strong> -> <strong>Pages</strong>.</div></li>
+              <li><div class="step-content">Pilih Branch: <code>main</code>, Folder: <code>/ (root)</code> -> Klik <strong>Save</strong>.</div></li>
+              <li><div class="step-content">Web akan online di <code>https://fadhilarfnn.github.io/web-absensi-metagama/</code>.</div></li>
+            </ol>
+
+            <h5 style="font-weight: 700; color: var(--secondary); margin-bottom: 8px;">2. Authorized JavaScript Origins di Google Cloud</h5>
+            <p class="helper-text" style="margin-bottom: 12px;">
+              Pastikan domain di atas sudah ditambahkan pada <strong>Authorized JavaScript Origins</strong> di Google Cloud Console agar Google Sign-In tidak memunculkan <code>Error 400: origin_mismatch</code>.
+            </p>
           </div>
         </div>
 
@@ -461,6 +683,9 @@
       radius: APP_CONFIG.RADIUS_METER,
       sheetUrl: APP_CONFIG.GOOGLE_SHEET_URL,
       clientId: APP_CONFIG.GOOGLE_CLIENT_ID,
+      supabaseUrl: APP_CONFIG.SUPABASE_URL || "",
+      supabaseKey: APP_CONFIG.SUPABASE_ANON_KEY || "",
+      backendProvider: APP_CONFIG.BACKEND_PROVIDER || "sheets",
       gpsMode: "real"
     };
 
@@ -683,8 +908,24 @@
       document.getElementById("cfg-lat").value = adminState.settings.targetLat;
       document.getElementById("cfg-lng").value = adminState.settings.targetLng;
       document.getElementById("cfg-radius").value = adminState.settings.radius;
+      if (document.getElementById("cfg-radius-range")) {
+        document.getElementById("cfg-radius-range").value = adminState.settings.radius;
+      }
+      if (document.getElementById("radius-val-text")) {
+        document.getElementById("radius-val-text").innerText = `${adminState.settings.radius} m`;
+      }
+      const statusBadge = document.getElementById("map-target-status");
+      if (statusBadge) {
+        statusBadge.innerText = `${adminState.settings.targetLat.toFixed(5)}, ${adminState.settings.targetLng.toFixed(5)}`;
+      }
       document.getElementById("cfg-sheet-url").value = adminState.settings.sheetUrl;
       document.getElementById("cfg-client-id").value = adminState.settings.clientId || "";
+      if (document.getElementById("cfg-supabase-url")) {
+        document.getElementById("cfg-supabase-url").value = adminState.settings.supabaseUrl || "";
+      }
+      if (document.getElementById("cfg-supabase-key")) {
+        document.getElementById("cfg-supabase-key").value = adminState.settings.supabaseKey || "";
+      }
       updateSimBtns();
     }
 
@@ -699,6 +940,12 @@
       adminState.settings.radius = parseFloat(document.getElementById("cfg-radius").value) || ADMIN_DEFAULTS.radius;
       adminState.settings.sheetUrl = document.getElementById("cfg-sheet-url").value.trim();
       adminState.settings.clientId = document.getElementById("cfg-client-id").value.trim();
+      if (document.getElementById("cfg-supabase-url")) {
+        adminState.settings.supabaseUrl = document.getElementById("cfg-supabase-url").value.trim();
+      }
+      if (document.getElementById("cfg-supabase-key")) {
+        adminState.settings.supabaseKey = document.getElementById("cfg-supabase-key").value.trim();
+      }
       
       saveEncryptedSettings();
       renderAdminMap();
@@ -776,32 +1023,100 @@
       showToast(mode === "real" ? "GPS Asli Aktif" : mode === "inside" ? "Simulasi Dalam Area" : "Simulasi Luar Area");
     }
 
-    // ---- Map ----
+    // ---- Map Setup Presisi (Draggable & Clickable) ----
     function renderAdminMap() {
       const lat = adminState.settings.targetLat;
       const lng = adminState.settings.targetLng;
       const radius = adminState.settings.radius;
 
       if (!adminState.map) {
-        adminState.map = L.map("admin-map", { zoomControl: true, scrollWheelZoom: false });
+        adminState.map = L.map("admin-map", { zoomControl: true, scrollWheelZoom: true });
         L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          attribution: "&copy; OpenStreetMap"
+          attribution: "&copy; OpenStreetMap contributors"
         }).addTo(adminState.map);
+
+        // FITUR PRESISI 1: Klik di mana saja pada peta untuk mengatur koordinat target baru
+        adminState.map.on('click', function(e) {
+          updateTargetCoordinates(e.latlng.lat, e.latlng.lng);
+          showToast("Koordinat target dipindahkan ke titik klik!");
+        });
       }
+
+      // Pastikan dimensi peta terhitung ulang jika tab baru dibuka
+      setTimeout(() => {
+        if (adminState.map) adminState.map.invalidateSize();
+      }, 100);
 
       if (adminState.mapCircle) adminState.map.removeLayer(adminState.mapCircle);
       if (adminState.mapMarker) adminState.map.removeLayer(adminState.mapMarker);
 
+      // Lingkaran Geofence
       adminState.mapCircle = L.circle([lat, lng], {
-        color: "hsl(174, 75%, 38%)", fillColor: "hsl(174, 75%, 38%)", fillOpacity: 0.2, radius: radius
+        color: "hsl(174, 75%, 38%)", fillColor: "hsl(174, 75%, 38%)", fillOpacity: 0.25, radius: radius
       }).addTo(adminState.map);
 
+      // FITUR PRESISI 2: Pin interaktif yang bisa digeser (draggable)
       const icon = L.divIcon({
-        html: '<div style="background: hsl(174, 75%, 38%); color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0,0,0,0.3); border: 2px solid white;"><i class="fa-solid fa-mosque"></i></div>',
-        className: "custom-div-icon", iconSize: [32, 32], iconAnchor: [16, 16]
+        html: '<div style="background: hsl(174, 75%, 38%); color: white; border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(0,0,0,0.35); border: 2px solid white; cursor: grab;"><i class="fa-solid fa-mosque"></i></div>',
+        className: "custom-div-icon", iconSize: [34, 34], iconAnchor: [17, 17]
       });
-      adminState.mapMarker = L.marker([lat, lng], { icon }).addTo(adminState.map).bindPopup("<b>Masjid Luqmanul Hakim POLBAN</b><br>Area Presensi Resmi").openPopup();
+
+      adminState.mapMarker = L.marker([lat, lng], { icon, draggable: true })
+        .addTo(adminState.map)
+        .bindPopup("<b>Pusat Presensi</b><br>Geser (drag) pin ini untuk mengatur ulang titik pusat secara presisi.")
+        .openPopup();
+
+      // Event saat pin selesai di-drag
+      adminState.mapMarker.on('dragend', function(e) {
+        const position = e.target.getLatLng();
+        updateTargetCoordinates(position.lat, position.lng);
+        showToast("Koordinat target diperbarui dari pin!");
+      });
+
       adminState.map.setView([lat, lng], 17);
+    }
+
+    function updateTargetCoordinates(lat, lng) {
+      adminState.settings.targetLat = Number(lat.toFixed(6));
+      adminState.settings.targetLng = Number(lng.toFixed(6));
+
+      document.getElementById("cfg-lat").value = adminState.settings.targetLat;
+      document.getElementById("cfg-lng").value = adminState.settings.targetLng;
+
+      // Geser lingkaran dan marker secara instan
+      if (adminState.mapMarker) adminState.mapMarker.setLatLng([lat, lng]);
+      if (adminState.mapCircle) adminState.mapCircle.setLatLng([lat, lng]);
+
+      const statusBadge = document.getElementById("map-target-status");
+      if (statusBadge) statusBadge.innerText = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    }
+
+    function updateRadiusVisual(radiusVal) {
+      adminState.settings.radius = Number(radiusVal);
+      document.getElementById("cfg-radius").value = radiusVal;
+      document.getElementById("cfg-radius-range").value = radiusVal;
+      document.getElementById("radius-val-text").innerText = `${radiusVal} m`;
+
+      if (adminState.mapCircle) {
+        adminState.mapCircle.setRadius(Number(radiusVal));
+      }
+    }
+
+    // ---- Tab Switching Logic ----
+    function switchTab(tabId) {
+      document.querySelectorAll(".admin-tab-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.getAttribute("data-tab") === tabId);
+      });
+      document.querySelectorAll(".admin-tab-content").forEach(content => {
+        content.classList.toggle("d-none", content.id !== tabId);
+      });
+
+      // Jika membuka tab geolocation, refresh ukuran peta Leaflet
+      if (tabId === "tab-geolocation" && adminState.map) {
+        setTimeout(() => {
+          adminState.map.invalidateSize();
+        }, 150);
+      }
     }
 
     // ---- GPS for "Set Current Location" ----
@@ -827,6 +1142,38 @@
       // Periksa status login terlebih dahulu
       checkAdminAuth();
 
+      // Tab navigasi switching
+      document.querySelectorAll(".admin-tab-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+          const targetTab = btn.getAttribute("data-tab");
+          switchTab(targetTab);
+        });
+      });
+
+      // Setup event slider radius
+      const radiusRange = document.getElementById("cfg-radius-range");
+      if (radiusRange) {
+        radiusRange.addEventListener("input", (e) => {
+          updateRadiusVisual(e.target.value);
+        });
+      }
+
+      // Input manual koordinat
+      document.getElementById("cfg-lat").addEventListener("change", (e) => {
+        updateTargetCoordinates(parseFloat(e.target.value) || ADMIN_DEFAULTS.targetLat, adminState.settings.targetLng);
+      });
+      document.getElementById("cfg-lng").addEventListener("change", (e) => {
+        updateTargetCoordinates(adminState.settings.targetLat, parseFloat(e.target.value) || ADMIN_DEFAULTS.targetLng);
+      });
+
+      // Reset ke Masjid Luqmanul Hakim POLBAN
+      document.getElementById("btn-reset-polban").addEventListener("click", () => {
+        updateTargetCoordinates(ADMIN_DEFAULTS.targetLat, ADMIN_DEFAULTS.targetLng);
+        updateRadiusVisual(50);
+        if (adminState.map) adminState.map.setView([ADMIN_DEFAULTS.targetLat, ADMIN_DEFAULTS.targetLng], 17);
+        showToast("Koordinat dikembalikan ke Masjid LH POLBAN");
+      });
+
       // Setup event login password
       document.getElementById("btn-admin-login-pwd").addEventListener("click", handlePasswordLogin);
       document.getElementById("admin-password-input").addEventListener("keypress", (e) => {
@@ -843,12 +1190,16 @@
         document.getElementById("admin-password-input").value = "";
       });
 
-      // Setup event-event panel admin utama
+      // Setup event simpan
       document.getElementById("btn-save-settings").addEventListener("click", saveSettings);
-      
       document.getElementById("btn-save-auth").addEventListener("click", saveSettings);
-      
       document.getElementById("btn-save-sheet-url").addEventListener("click", saveSettings);
+      if (document.getElementById("btn-save-supabase")) {
+        document.getElementById("btn-save-supabase").addEventListener("click", () => {
+          saveSettings();
+          showToast("Kredensial Supabase berhasil disimpan!");
+        });
+      }
 
       document.getElementById("sim-gps-real").addEventListener("click", () => setSimMode("real"));
       document.getElementById("sim-gps-inside").addEventListener("click", () => setSimMode("inside"));
@@ -856,12 +1207,11 @@
 
       document.getElementById("btn-set-current-target").addEventListener("click", () => {
         if (adminState.userLocation.lat && adminState.userLocation.lng) {
-          document.getElementById("cfg-lat").value = adminState.userLocation.lat.toFixed(6);
-          document.getElementById("cfg-lng").value = adminState.userLocation.lng.toFixed(6);
+          updateTargetCoordinates(adminState.userLocation.lat, adminState.userLocation.lng);
           saveSettings();
-          showToast("Pusat target diatur ke lokasi Anda!");
+          showToast("Pusat target diatur ke lokasi GPS Anda saat ini!");
         } else {
-          showToast("Gagal membaca lokasi Anda. Pastikan izin GPS aktif.");
+          showToast("Gagal membaca lokasi Anda. Pastikan izin GPS browser aktif.");
         }
       });
     });
