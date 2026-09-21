@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Presensi Geofencing Masjid Luqmanul Hakim POLBAN</title>
+  <meta name="description"
+    content="Form presensi mahasiswa POLBAN berbasis geofencing. Hanya dapat diisi di area Masjid Luqmanul Hakim POLBAN.">
+
+  <!-- Google Fonts - Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Leaflet Map CSS & CDN Optimization -->
+  <link rel="preconnect" href="https://unpkg.com" crossorigin>
+  <link rel="dns-prefetch" href="https://unpkg.com">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+
+  <!-- Google Identity Services (Google Sign-In) -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+
+  <!-- Custom Styling -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+  <!-- Background Glow Effects -->
+  <div class="glow-bg">
+    <div class="glow-circle glow-1"></div>
+    <div class="glow-circle glow-2"></div>
+  </div>
+
+  <div class="app-container">
+    <!-- Header/Navigation (Mahasiswa - Bersih & Minimalis) -->
+    <header class="main-header">
+      <div class="logo">
+        <i class="fa-solid fa-mosque"></i>
+        <span>Presensi Metagama</span>
+      </div>
+    </header>
+
+    <main class="content-wrapper">
+
+      <!-- SCREEN 0: Google Login -->
+      <section id="screen-login" class="app-card active">
+        <div class="login-header">
+          <div class="login-icon-wrapper">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <h2>Masuk Akun POLBAN</h2>
+          <p class="success-subtitle">Presensi dibatasi khusus untuk mahasiswa Politeknik Negeri Bandung</p>
+        </div>
+
+        <div class="login-body">
+          <p class="login-description">
+            Untuk mengisi form presensi ini, Anda wajib masuk menggunakan email institusi POLBAN resmi Anda
+            (<code>@polban.ac.id</code>).
+          </p>
+
+          <!-- Real Google Sign In Button Container -->
+          <div id="google-signin-btn-container"></div>
+
+          <!-- Google Load Error Message (Jika Google gagal dimuat / Client ID kosong) -->
+          <div id="google-load-error" class="mock-login-box d-none"
+            style="border-color: var(--danger); background: var(--danger-glow); text-align: center;">
+            <h4 style="color: var(--danger); margin-bottom: 8px;"><i class="fa-solid fa-circle-exclamation"></i> Layanan
+              Login Gagal</h4>
+            <p id="google-error-message" style="font-size: 0.8rem; color: var(--text-muted); line-height: 1.4;">Sedang
+              menghubungkan ke Google Sign-In...</p>
+            <button type="button" onclick="window.location.reload()" class="btn btn-outline btn-block btn-sm"
+              style="margin-top: 12px; font-size: 0.8rem; padding: 8px 16px;">
+              <i class="fa-solid fa-rotate-right"></i> Muat Ulang Halaman
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 1: Checking Location -->
+      <section id="screen-checking" class="app-card">
+        <div class="loader-container">
+          <div class="pulse-ring">
+            <i class="fa-solid fa-location-crosshairs pulse-icon"></i>
+          </div>
+          <h2>Memeriksa Lokasi & Status</h2>
+          <p class="status-msg">Memverifikasi lokasi GPS Anda terhadap area Masjid Luqmanul Hakim POLBAN dan memeriksa
+            status pengisian presensi...</p>
+
+          <div class="checking-steps">
+            <div class="step-item" id="step-gps">
+              <i class="fa-solid fa-circle-notch fa-spin step-icon"></i>
+              <span>Mencari koordinat GPS</span>
+            </div>
+            <div class="step-item" id="step-geofence">
+              <i class="fa-regular fa-circle step-icon text-muted"></i>
+              <span>Menghitung jarak ke Masjid LH</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 2: Access Denied (Outside Radius) -->
+      <section id="screen-denied" class="app-card">
+        <div class="card-header text-center error-header">
+          <div class="warning-icon-wrapper">
+            <i class="fa-solid fa-triangle-exclamation"></i>
+          </div>
+          <h2>Akses Presensi Ditolak</h2>
+          <p class="error-subtitle">Anda terdeteksi di luar area Masjid Luqmanul Hakim POLBAN.</p>
+        </div>
+
+        <div class="card-body">
+          <div class="distance-badge-container">
+            <div class="distance-badge">
+              <span class="label">Jarak Anda:</span>
+              <span id="denied-distance" class="value">0 meter</span>
+            </div>
+            <div class="distance-badge required-badge">
+              <span class="label">Maks. Radius:</span>
+              <span id="denied-required-radius" class="value">50 meter</span>
+            </div>
+          </div>
+
+          <p class="explanation-text">
+            Sesuai peraturan, Anda hanya dapat mengisi form presensi jika berada di dalam area radius <strong>Masjid
+              Luqmanul Hakim POLBAN</strong>.
+          </p>
+
+          <!-- Interaktif Map -->
+          <div class="map-wrapper">
+            <div class="map-label"><i class="fa-solid fa-map-location-dot"></i> Peta Lokasi Geofencing</div>
+            <div id="denied-map"></div>
+          </div>
+
+          <div class="action-buttons text-center">
+            <button id="btn-retry-location" class="btn btn-primary btn-block">
+              <i class="fa-solid fa-rotate-right"></i> Coba Deteksi Ulang Lokasi
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- SCREEN 3: Attendance Form -->
+      <section id="screen-form" class="app-card">
+        <div class="card-header form-header">
+          <div class="success-icon-wrapper mini">
+            <i class="fa-solid fa-location-dot"></i>
+          </div>
+          <div>
+            <h2>Form Presensi Mahasiswa</h2>
+            <p class="success-subtitle"><i class="fa-solid fa-circle-check text-success"></i> Lokasi terverifikasi di
+              area Masjid LH</p>
+          </div>
+        </div>
+
+        <form id="presence-form" class="card-body" novalidate>
+
+          <!-- User Logged In Badge (Identitas Hasil Login Google) -->
+          <div class="user-badge">
+            <div class="user-badge-info">
+              <i class="fa-solid fa-circle-user"></i>
+              <div class="user-badge-text">
+                <span class="badge-title">Email Mahasiswa Terverifikasi</span>
+                <span id="user-email-badge" class="badge-email">-</span>
+              </div>
+            </div>
+            <button type="button" id="btn-signout" class="btn-signout">
+              <i class="fa-solid fa-right-from-bracket"></i> Keluar
+            </button>
+          </div>
+
+          <div class="form-row">
+            <!-- Nama Lengkap -->
+            <div class="form-group">
+              <label for="input-nama">Nama Lengkap <span class="required">*</span></label>
+              <div class="input-wrapper">
+                <i class="fa-solid fa-user input-icon"></i>
+                <input type="text" id="input-nama" placeholder="Masukkan nama lengkap sesuai KTM" required>
+              </div>
+              <div class="error-msg" id="err-nama">Nama wajib diisi</div>
+            </div>
+
+            <!-- NIM -->
+            <div class="form-group">
+              <label for="input-nim">NIM <span class="required">*</span></label>
+              <div class="input-wrapper">
+                <i class="fa-solid fa-id-card input-icon"></i>
+                <input type="text" id="input-nim" maxlength="9" placeholder="Contoh: 231511001" required>
+              </div>
+              <div class="error-msg" id="err-nim">NIM harus berupa 9 digit angka</div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <!-- Jurusan -->
+            <div class="form-group">
+              <label for="select-jurusan">Jurusan <span class="required">*</span></label>
+              <div class="input-wrapper">
+                <i class="fa-solid fa-building-columns input-icon"></i>
+                <select id="select-jurusan" required>
+                  <option value="" disabled selected>Pilih Jurusan</option>
+                  <option value="Administrasi Niaga">Administrasi Niaga</option>
+                  <option value="Akuntansi">Akuntansi</option>
+                  <option value="Teknik Elektro">Teknik Elektro</option>
+                  <option value="Teknik Kimia">Teknik Kimia</option>
+                  <option value="Teknik Komputer dan Informatika">Teknik Komputer dan Informatika</option>
+                  <option value="Teknik Konversi Energi">Teknik Konversi Energi</option>
+                  <option value="Teknik Mesin">Teknik Mesin</option>
+                  <option value="Teknik Refrigerasi dan Tata Udara">Teknik Refrigerasi dan Tata Udara</option>
+                  <option value="Teknik Sipil">Teknik Sipil</option>
+                </select>
+              </div>
+              <div class="error-msg" id="err-jurusan">Jurusan wajib dipilih</div>
+            </div>
+
+            <!-- Prodi -->
+            <div class="form-group">
+              <label for="select-prodi">Program Studi (Prodi) <span class="required">*</span></label>
+              <div class="input-wrapper">
+                <i class="fa-solid fa-graduation-cap input-icon"></i>
+                <select id="select-prodi" required>
+                  <option value="" disabled selected>Pilih Prodi</option>
+                  <option value="D4 Administrasi Bisnis">D4 Administrasi Bisnis</option>
+                  <option value="D4 Akuntansi">D4 Akuntansi</option>
+                  <option value="D4 Akuntansi Manajemen Pemerintahan">D4 Akuntansi Manajemen Pemerintahan</option>
+                  <option value="D4 Destinasi Pariwisata">D4 Destinasi Pariwisata</option>
+                  <option value="D4 Keuangan Syariah">D4 Keuangan Syariah</option>
+                  <option value="D4 Manajemen Aset">D4 Manajemen Aset</option>
+                  <option value="D4 Manajemen Pemasaran">D4 Manajemen Pemasaran</option>
+                  <option value="D4 Proses Manufaktur">D4 Proses Manufaktur</option>
+                  <option value="D4 Teknik Elektronika">D4 Teknik Elektronika</option>
+                  <option value="D4 Teknik Informatika">D4 Teknik Informatika</option>
+                  <option value="D4 Teknik Kimia Produksi Bersih">D4 Teknik Kimia Produksi Bersih</option>
+                  <option value="D4 Teknik Konservasi Energi">D4 Teknik Konservasi Energi</option>
+                  <option value="D4 Teknik Otomasi Industri">D4 Teknik Otomasi Industri</option>
+                  <option value="D4 Teknik Pendingin dan Tata Udara">D4 Teknik Pendingin dan Tata Udara</option>
+                  <option value="D4 Teknik Perancangan Jalan dan Jembatan">D4 Teknik Perancangan Jalan dan Jembatan
+                  </option>
+                  <option value="D4 Teknik Perancangan dan Konstruksi Mesin">D4 Teknik Perancangan dan Konstruksi Mesin
+                  </option>
+                  <option value="D4 Teknik Perawatan dan Perbaikan Gedung">D4 Teknik Perawatan dan Perbaikan Gedung
+                  </option>
+                  <option value="D4 Teknik Telekomunikasi">D4 Teknik Telekomunikasi</option>
+                  <option value="D4 Teknologi Pembangkit Tenaga Listrik">D4 Teknologi Pembangkit Tenaga Listrik</option>
+                </select>
+              </div>
+              <div class="error-msg" id="err-prodi">Program Studi wajib dipilih</div>
+            </div>
+          </div>
+
+          <!-- Kelas -->
+          <div class="form-group">
+            <label for="select-kelas">Kelas <span class="required">*</span></label>
+            <div class="input-wrapper">
+              <i class="fa-solid fa-users input-icon"></i>
+              <select id="select-kelas" required>
+                <option value="" disabled selected>Pilih Kelas</option>
+                <option value="1A - AMP">1A - AMP</option>
+                <option value="1B - AMP">1B - AMP</option>
+                <option value="1A - AC">1A - AC</option>
+                <option value="1B - AC">1B - AC</option>
+                <option value="1A - PMA">1A - PMA</option>
+                <option value="1B - PMA">1B - PMA</option>
+                <option value="1A - TKPB">1A - TKPB</option>
+                <option value="1B - TKPB">1B - TKPB</option>
+                <option value="1C - TKPB">1C - TKPB</option>
+                <option value="1A - TNK">1A - TNK</option>
+                <option value="1B - TNK">1B - TNK</option>
+                <option value="1C - TNK">1C - TNK</option>
+                <option value="1A - MAS">1A - MAS</option>
+                <option value="1B - MAS">1B - MAS</option>
+                <option value="1C - MAS">1C - MAS</option>
+                <option value="1A - TI4">1A - TI4</option>
+                <option value="1B - TI4">1B - TI4</option>
+                <option value="1C - TI4">1C - TI4</option>
+                <option value="1D - TI4">1D - TI4</option>
+                <option value="1A - TPTL">1A - TPTL</option>
+                <option value="1B - TPTL">1B - TPTL</option>
+                <option value="1C - TPTL">1C - TPTL</option>
+                <option value="1A - EK">1A - EK</option>
+                <option value="1B - EK">1B - EK</option>
+                <option value="1C - EK">1C - EK</option>
+                <option value="1A - TKE">1A - TKE</option>
+                <option value="1B - TKE">1B - TKE</option>
+                <option value="1A - TPJJ">1A - TPJJ</option>
+                <option value="1B - TPJJ">1B - TPJJ</option>
+                <option value="1A - TPPG">1A - TPPG</option>
+                <option value="1B - TPPG">1B - TPPG</option>
+                <option value="1A - KS">1A - KS</option>
+                <option value="1B - KS">1B - KS</option>
+                <option value="1C - KS">1C - KS</option>
+                <option value="1A - PTU">1A - PTU</option>
+                <option value="1B - PTU">1B - PTU</option>
+                <option value="1A - TOI">1A - TOI</option>
+                <option value="1B - TOI">1B - TOI</option>
+                <option value="1C - TOI">1C - TOI</option>
+                <option value="1A - TPKM">1A - TPKM</option>
+                <option value="1B - TPKM">1B - TPKM</option>
+                <option value="1A - DP">1A - DP</option>
+                <option value="1B - DP">1B - DP</option>
+                <option value="1A - IM">1A - IM</option>
+                <option value="1B - IM">1B - IM</option>
+                <option value="1A - BA">1A - BA</option>
+                <option value="1B - BA">1B - BA</option>
+              </select>
+            </div>
+            <div class="error-msg" id="err-kelas">Kelas wajib dipilih</div>
+          </div>
+
+          <!-- Selfie Camera Capture -->
+          <div class="form-group camera-group">
+            <label>Foto Selfie Presensi <span class="required">*</span></label>
+            <div class="camera-container">
+              <!-- Live Video -->
+              <video id="webcam" autoplay playsinline class="video-preview active"></video>
+
+              <!-- Captured Static Image -->
+              <canvas id="photo-canvas" class="photo-preview"></canvas>
+
+              <div class="camera-placeholder" id="camera-placeholder">
+                <i class="fa-solid fa-camera"></i>
+                <p>Menginisialisasi Kamera...</p>
+              </div>
+
+              <!-- Camera Controls -->
+              <div class="camera-controls">
+                <button type="button" id="btn-capture" class="btn btn-camera">
+                  <i class="fa-solid fa-circle-dot"></i> Ambil Foto
+                </button>
+                <button type="button" id="btn-recapture" class="btn btn-camera btn-warning d-none">
+                  <i class="fa-solid fa-rotate-left"></i> Foto Ulang
+                </button>
+              </div>
+            </div>
+            <div class="error-msg" id="err-selfie">Foto selfie wajib diambil</div>
+          </div>
+
+          <div class="action-buttons">
+            <button type="submit" id="btn-submit" class="btn btn-success btn-block">
+              <i class="fa-solid fa-paper-plane"></i> Kirim Presensi
+            </button>
+          </div>
+        </form>
+      </section>
+
+      <!-- SCREEN 4: Success State (Locked - no return or history buttons) -->
+      <section id="screen-success" class="app-card">
+        <div class="loader-container">
+          <div class="success-checkmark-wrapper">
+            <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+              <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none" />
+              <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8" />
+            </svg>
+          </div>
+          <h2 id="success-title">Presensi Berhasil Terkirim!</h2>
+          <p class="status-msg text-success" id="success-msg">Terima kasih, kehadiran Anda telah berhasil diverifikasi
+            dan disimpan.</p>
+
+          <div class="summary-card">
+            <div class="summary-row">
+              <span class="label">Nama:</span>
+              <span id="summary-nama" class="value">-</span>
+            </div>
+            <div class="summary-row">
+              <span class="label">NIM:</span>
+              <span id="summary-nim" class="value">-</span>
+            </div>
+            <div class="summary-row">
+              <span class="label">Waktu:</span>
+              <span id="summary-waktu" class="value">-</span>
+            </div>
+            <div class="summary-row">
+              <span class="label">Status Pengisian:</span>
+              <span class="value text-highlight" style="font-weight: 700;">Hanya Boleh Diisi 1 Kali</span>
+            </div>
+          </div>
+
+          <div class="helper-text text-center">
+            <i class="fa-solid fa-circle-info"></i> Form presensi ini dikunci karena Anda telah berhasil mengisi
+            presensi. Anda tidak perlu/tidak dapat mengirim form kembali.
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="main-footer">
+      <p>&copy; 2026 Politeknik Negeri Bandung. All rights reserved.</p>
+      <span class="indicator-gps" id="gps-indicator">
+        <span class="dot"></span>
+        <span class="label">GPS Aktif</span>
+      </span>
+    </footer>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">
+    <span id="toast-message">Notifikasi</span>
+  </div>
+
+  <!-- Leaflet Map JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+  <!-- Config (dibaca oleh app.js) -->
+  <script src="config.js"></script>
+
+  <!-- Custom Logic -->
+  <script src="app.js"></script>
+</body>
+
+</html>

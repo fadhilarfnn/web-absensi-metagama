@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel - Presensi POLBAN</title>
+  
+  <!-- Google Fonts - Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Leaflet Map CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- Custom Styling -->
+  <link rel="stylesheet" href="styles.css">
+  
+  <!-- Google GSI SDK -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  
+  <style>
+    /* Admin-specific overrides */
+    .admin-banner {
+      background: linear-gradient(135deg, #1e293b, #334155);
+      color: white;
+      padding: 16px 20px;
+      border-radius: var(--radius-md);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .admin-banner i { font-size: 1.5rem; color: var(--warning); }
+    .admin-banner .admin-text h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: 2px; }
+    .admin-banner .admin-text p { font-size: 0.8rem; opacity: 0.7; }
+    
+    .admin-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      backdrop-filter: blur(20px);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      padding: 28px;
+      margin-bottom: 16px;
+      animation: fade-in-up var(--transition-normal);
+    }
+    
+    .admin-card h4 {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--secondary);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .admin-card h4 i { color: var(--primary); }
+    
+    .link-box {
+      background: #f1f5f9;
+      border: 1px dashed var(--border-input);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      font-family: monospace;
+      font-size: 0.85rem;
+      word-break: break-all;
+      margin-bottom: 12px;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .link-box .link-text { flex-grow: 1; }
+    .link-box .copy-btn {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.75rem;
+      font-weight: 600;
+      flex-shrink: 0;
+      transition: var(--transition-fast);
+    }
+    .link-box .copy-btn:hover { background: var(--primary-hover); }
+    
+    .step-guide {
+      counter-reset: step-counter;
+      padding-left: 0;
+      list-style: none;
+    }
+    .step-guide li {
+      counter-increment: step-counter;
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+      align-items: flex-start;
+    }
+    .step-guide li::before {
+      content: counter(step-counter);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--primary-glow);
+      color: var(--primary);
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .step-guide li .step-content { font-size: 0.9rem; color: var(--text-main); line-height: 1.5; }
+    .step-guide li .step-content strong { color: var(--primary); }
+    .step-guide li .step-content code {
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+
+    .simulation-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .simulation-actions .btn {
+      text-align: left;
+      font-size: 0.85rem;
+      padding: 10px 14px;
+    }
+    .simulation-actions .btn.active {
+      background-color: var(--primary-light);
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+
+    .admin-form .form-group { margin-bottom: 16px; }
+    .admin-form .form-group label { font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; display: block; }
+    .admin-form .form-group input {
+      width: 100%;
+      padding: 10px 14px;
+      font-size: 0.9rem;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-input);
+      background-color: var(--bg-input);
+      color: var(--text-main);
+      outline: none;
+      transition: var(--transition-fast);
+    }
+    .admin-form .form-group input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 4px var(--primary-glow);
+    }
+
+    .preview-map-container {
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      border: 1px solid var(--border-input);
+      margin-top: 16px;
+    }
+    .preview-map-container .map-label {
+      background: var(--secondary);
+      color: white;
+      padding: 8px 16px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #admin-map { width: 100%; height: 250px; }
+
+    .content-wrapper { align-items: flex-start; }
+    .admin-wrapper {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .d-none {
+      display: none !important;
+    }
+    .login-container {
+      width: 100%;
+      max-width: 440px;
+      margin: 40px auto;
+      animation: fade-in-up var(--transition-normal);
+    }
+    .text-center {
+      text-align: center;
+    }
+    .mb-0 {
+      margin-bottom: 0 !important;
+    }
+    .text-danger {
+      color: var(--danger) !important;
+    }
+    .btn-block {
+      width: 100%;
+      justify-content: center;
+    }
+    @media(max-width: 480px) {
+      .admin-card { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Background Glow Effects -->
+  <div class="glow-bg">
+    <div class="glow-circle glow-1"></div>
+    <div class="glow-circle glow-2"></div>
+  </div>
+
+  <div class="app-container">
+    <!-- Header/Navigation -->
+    <header class="main-header">
+      <div class="logo">
+        <i class="fa-solid fa-gears"></i>
+        <span>Admin Panel</span>
+      </div>
+      <div class="nav-actions">
+        <a href="index.html" class="icon-btn" title="Buka Form Mahasiswa">
+          <i class="fa-solid fa-arrow-up-right-from-square"></i>
+        </a>
+        <button id="btn-admin-logout" class="icon-btn d-none" title="Keluar dari Panel Admin">
+          <i class="fa-solid fa-right-from-bracket"></i>
+        </button>
+      </div>
+    </header>
+
+    <main class="content-wrapper">
+      
+      <!-- Admin Login Gate -->
+      <div class="login-container" id="admin-login-card">
+        <div class="admin-card text-center mb-0">
+          <div style="font-size: 2.5rem; color: var(--primary); margin-bottom: 16px;">
+            <i class="fa-solid fa-user-shield"></i>
+          </div>
+          <h3 style="font-weight: 700; margin-bottom: 8px;">Autentikasi Admin</h3>
+          <p class="helper-text" style="margin-bottom: 24px; font-size: 0.85rem; line-height: 1.4;">Silakan verifikasi identitas Anda untuk mengakses Panel Konfigurasi Presensi POLBAN.</p>
+          
+          <!-- Google Sign-In Container -->
+          <div id="admin-google-login-section">
+            <div style="display: flex; justify-content: center; margin-bottom: 16px;">
+              <div id="admin-google-signin-btn"></div>
+            </div>
+            <div id="admin-google-error" class="helper-text text-danger d-none" style="margin-bottom: 16px; font-weight: 600; font-size: 0.8rem; line-height: 1.4;"></div>
+          </div>
+          
+          <!-- Divider -->
+          <div id="admin-login-divider" style="margin: 16px 0; display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--text-muted); font-size: 0.8rem;">
+            <span style="height: 1px; flex-grow: 1; background: var(--border-input); opacity: 0.5;"></span>
+            <span>ATAU</span>
+            <span style="height: 1px; flex-grow: 1; background: var(--border-input); opacity: 0.5;"></span>
+          </div>
+          
+          <!-- Password Form -->
+          <div class="admin-form" style="text-align: left;">
+            <div class="form-group" style="margin-bottom: 16px;">
+              <label for="admin-password-input">Password Akses Admin</label>
+              <input type="password" id="admin-password-input" placeholder="Masukkan password admin...">
+            </div>
+            <button id="btn-admin-login-pwd" class="btn btn-primary btn-block">
+              <i class="fa-solid fa-key"></i> Masuk dengan Password
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="admin-wrapper d-none" id="admin-main-content">
+
+        <!-- Admin Banner -->
+        <div class="admin-banner">
+          <i class="fa-solid fa-shield-halved"></i>
+          <div class="admin-text">
+            <h3>Panel Pengelola Presensi</h3>
+            <p>Halaman ini hanya untuk Anda (admin). Jangan bagikan link ini ke mahasiswa.</p>
+          </div>
+        </div>
+
+        <!-- ======= CARD 1: Link Share ======= -->
+        <div class="admin-card">
+          <h4><i class="fa-solid fa-share-nodes"></i> Link untuk Mahasiswa</h4>
+          <p class="helper-text" style="margin-bottom: 12px;">Bagikan link ini ke mahasiswa agar mereka bisa mengisi form presensi. <strong>Mereka harus berada di area Masjid Luqmanul Hakim POLBAN</strong> untuk bisa membukanya.</p>
+          
+          <div class="link-box" id="student-link-box">
+            <span class="link-text" id="student-link-text">Mendeteksi URL...</span>
+            <button class="copy-btn" onclick="copyStudentLink()"><i class="fa-solid fa-copy"></i> Salin</button>
+          </div>
+          <div class="helper-text">
+            <i class="fa-solid fa-circle-info text-primary"></i> Link di atas otomatis terdeteksi berdasarkan URL Anda saat ini. Jika Anda sudah deploy ke Netlify/Vercel/GitHub Pages, link tersebut sudah bisa dibagikan!
+          </div>
+        </div>
+
+        <!-- ======= CARD 2: Panduan Deploy ======= -->
+        <div class="admin-card">
+          <h4><i class="fa-solid fa-rocket"></i> Cara Deploy & Dapatkan Link Publik (GRATIS)</h4>
+          <p class="helper-text" style="margin-bottom: 16px;">Saat ini form berjalan lokal di komputer Anda. Agar mahasiswa bisa mengaksesnya lewat HP, Anda perlu meng-<em>upload</em> ke internet. Berikut cara termudah:</p>
+
+          <h5 style="font-weight: 700; color: var(--secondary); margin-bottom: 12px;">Opsi 1: Netlify Drop (Paling Mudah, Tanpa Akun)</h5>
+          <ol class="step-guide">
+            <li><div class="step-content">Buka <strong><a href="https://app.netlify.com/drop" target="_blank" style="color: var(--primary)">https://app.netlify.com/drop</a></strong> di browser Anda.</div></li>
+            <li><div class="step-content">Seret (<em>drag & drop</em>) seluruh folder <code>D:\percobaan antigrafity</code> ke area upload di halaman tersebut.</div></li>
+            <li><div class="step-content">Tunggu beberapa detik. Netlify akan memberikan <strong>link publik</strong> (misal: <code>https://random-name.netlify.app</code>).</div></li>
+            <li><div class="step-content">Link tersebut adalah <strong>link index.html</strong> yang bisa Anda share ke mahasiswa!</div></li>
+            <li><div class="step-content">Link admin Anda: tambahkan <code>/admin.html</code> di belakang URL (misal: <code>https://random-name.netlify.app/admin.html</code>). <strong>Jangan bagikan link ini!</strong></div></li>
+          </ol>
+
+          <h5 style="font-weight: 700; color: var(--secondary); margin: 20px 0 12px;">Opsi 2: GitHub Pages (Gratis, Permanen)</h5>
+          <ol class="step-guide">
+            <li><div class="step-content">Buat akun <a href="https://github.com" target="_blank" style="color: var(--primary)">GitHub</a> jika belum punya.</div></li>
+            <li><div class="step-content">Buat Repository baru (misal: <code>presensi-polban</code>), lalu upload semua file dari <code>D:\percobaan antigrafity</code>.</div></li>
+            <li><div class="step-content">Masuk ke <strong>Settings → Pages</strong>, pilih branch <code>main</code>, lalu simpan.</div></li>
+            <li><div class="step-content">Link publik Anda: <code>https://username.github.io/presensi-polban/</code></div></li>
+          </ol>
+        </div>
+
+        <!-- ======= CARD 3: Batasi Akses Google Sign-In ======= -->
+        <div class="admin-card">
+          <h4><i class="fa-solid fa-key"></i> Integrasi Google Sign-In (Login Mahasiswa)</h4>
+          <p class="helper-text" style="margin-bottom: 16px;">Agar mahasiswa wajib masuk dengan email institusi POLBAN sebelum mengisi form presensi, dapatkan <strong>Google Client ID</strong> secara gratis dengan langkah ini:</p>
+          
+          <ol class="step-guide">
+            <li><div class="step-content">Buka <strong><a href="https://console.cloud.google.com" target="_blank" style="color: var(--primary)">Google Cloud Console</a></strong>.</div></li>
+            <li><div class="step-content">Buat Project baru, cari <strong>"APIs & Services"</strong> -> <strong>"OAuth consent screen"</strong>. Konfigurasikan screen untuk User Type External/Internal, isi info dasar aplikasi.</div></li>
+            <li><div class="step-content">Masuk ke menu <strong>"Credentials"</strong> -> Klik <strong>"+ Create Credentials"</strong> -> pilih <strong>"OAuth client ID"</strong>.</div></li>
+            <li><div class="step-content">Pilih Application Type: <strong>Web application</strong>.</div></li>
+            <li><div class="step-content">Pada bagian <strong>"Authorized JavaScript origins"</strong>, klik Add URI, lalu masukkan URL website/form Anda (misal: <code>http://localhost:8080</code> dan <code>https://[nama-web-anda].netlify.app</code>).</div></li>
+            <li><div class="step-content">Klik <strong>Create</strong>, lalu salin <strong>Client ID</strong> yang diberikan (berakhiran <code>.apps.googleusercontent.com</code>) dan tempel di bawah ini.</div></li>
+          </ol>
+
+          <div class="admin-form">
+            <div class="form-group">
+              <label for="cfg-client-id">Google OAuth Client ID</label>
+              <input type="text" id="cfg-client-id" placeholder="1234567890-xxxx.apps.googleusercontent.com">
+            </div>
+          </div>
+          <div class="helper-text" style="margin-bottom: 12px;"><i class="fa-solid fa-circle-info text-primary"></i> Jika kolom ini dikosongkan, halaman mahasiswa akan menggunakan <strong>Simulasi Login Google</strong> tiruan (sangat cocok untuk uji coba lokal).</div>
+          
+          <button id="btn-save-auth" class="btn btn-primary btn-block">
+            <i class="fa-solid fa-floppy-disk"></i> Simpan Client ID ke localStorage
+          </button>
+        </div>
+
+        <!-- ======= CARD 4: Konfigurasi Google Sheets ======= -->
+        <div class="admin-card">
+          <h4><i class="fa-solid fa-table"></i> Integrasi Google Sheets</h4>
+          <p class="helper-text" style="margin-bottom: 16px;">Agar data presensi mahasiswa otomatis masuk ke Google Sheets, ikuti langkah berikut:</p>
+          
+          <ol class="step-guide">
+            <li><div class="step-content">Buka <a href="https://sheets.google.com" target="_blank" style="color: var(--primary)">Google Sheets</a> baru.</div></li>
+            <li><div class="step-content">Klik menu <strong>Ekstensi → Apps Script</strong>.</div></li>
+            <li><div class="step-content">Hapus kode default, lalu salin-tempel seluruh isi file <code>google_apps_script.js</code> yang ada di folder proyek Anda. Simpan.</div></li>
+            <li><div class="step-content">Klik <strong>Deploy → New deployment</strong>. Pilih type <strong>Web app</strong>. Set akses ke <strong>"Anyone"</strong>. Klik <strong>Deploy</strong>.</div></li>
+            <li><div class="step-content">Salin <strong>URL Web App</strong> yang diberikan, lalu tempel di kolom di bawah ini.</div></li>
+          </ol>
+
+          <div class="admin-form">
+            <div class="form-group">
+              <label for="cfg-sheet-url">URL Google Apps Script Web App</label>
+              <input type="url" id="cfg-sheet-url" placeholder="https://script.google.com/macros/s/.../exec">
+            </div>
+          </div>
+          <div class="helper-text" style="margin-bottom: 12px;"><i class="fa-solid fa-circle-info text-primary"></i> URL ini akan disimpan ke file <code>config.js</code>. Setelah mengubahnya, klik Simpan lalu <strong>re-upload/deploy ulang</strong> folder proyek Anda.</div>
+          
+          <button id="btn-save-sheet-url" class="btn btn-success btn-block">
+            <i class="fa-solid fa-floppy-disk"></i> Simpan URL Sheets ke localStorage
+          </button>
+        </div>
+
+        <!-- ======= CARD 5: Geofencing & Simulasi ======= -->
+        <div class="admin-card">
+          <h4><i class="fa-solid fa-location-crosshairs"></i> Pengaturan Geofencing & Simulasi</h4>
+          
+          <div class="admin-form">
+            <div class="form-group">
+              <label for="cfg-lat">Latitude Target</label>
+              <input type="number" id="cfg-lat" step="0.000001" value="-6.872000">
+            </div>
+            <div class="form-group">
+              <label for="cfg-lng">Longitude Target</label>
+              <input type="number" id="cfg-lng" step="0.000001" value="107.573700">
+            </div>
+            <div class="form-group">
+              <label for="cfg-radius">Radius Pembatas (Meter)</label>
+              <input type="number" id="cfg-radius" min="10" value="50">
+            </div>
+          </div>
+          <div class="helper-text mb-3">Default: <strong>Masjid Luqmanul Hakim POLBAN</strong> (radius 50 meter).</div>
+
+          <h5 style="font-weight: 600; margin: 16px 0 10px; font-size: 0.9rem;">Simulasi Lokasi (Untuk Pengujian)</h5>
+          <p class="helper-text" style="margin-bottom: 12px;">Gunakan simulasi ini untuk menguji form presensi dari rumah tanpa harus berada di kampus.</p>
+          <div class="simulation-actions">
+            <button id="sim-gps-real" class="btn btn-outline btn-sm active btn-block mb-2">
+              <i class="fa-solid fa-satellite"></i> Gunakan GPS Asli Perangkat
+            </button>
+            <button id="sim-gps-inside" class="btn btn-outline btn-sm btn-block mb-2">
+              <i class="fa-solid fa-circle-check text-success"></i> Paksa Simulasi DI DALAM Radius
+            </button>
+            <button id="sim-gps-outside" class="btn btn-outline btn-sm btn-block">
+              <i class="fa-solid fa-circle-xmark text-danger"></i> Paksa Simulasi DI LUAR Radius
+            </button>
+          </div>
+          
+          <div style="margin-top: 12px;">
+            <button id="btn-set-current-target" class="btn btn-warning btn-sm btn-block">
+              <i class="fa-solid fa-location-dot"></i> Jadikan Lokasi Saya Sekarang Sebagai Pusat Target
+            </button>
+          </div>
+          
+          <div class="preview-map-container">
+            <div class="map-label"><i class="fa-solid fa-map-location-dot"></i> Preview Area Geofencing</div>
+            <div id="admin-map"></div>
+          </div>
+          
+          <div style="margin-top: 16px;">
+            <button id="btn-save-settings" class="btn btn-success btn-block">
+              <i class="fa-solid fa-floppy-disk"></i> Simpan Seluruh Pengaturan
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </main>
+
+    <!-- FOOTER -->
+    <footer class="main-footer">
+      <p>&copy; 2026 Politeknik Negeri Bandung. Admin Panel.</p>
+      <span class="indicator-gps" id="gps-indicator">
+        <span class="dot"></span>
+        <span class="label">GPS Aktif</span>
+      </span>
+    </footer>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast" class="toast">
+    <span id="toast-message">Notifikasi</span>
+  </div>
+
+  <!-- Leaflet Map JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- Config -->
+  <script src="config.js"></script>
+
+  <script>
+    /* ============================================================
+       ADMIN PANEL LOGIC
+       ============================================================ */
+    const ADMIN_DEFAULTS = {
+      targetLat: APP_CONFIG.TARGET_LAT,
+      targetLng: APP_CONFIG.TARGET_LNG,
+      radius: APP_CONFIG.RADIUS_METER,
+      sheetUrl: APP_CONFIG.GOOGLE_SHEET_URL,
+      clientId: APP_CONFIG.GOOGLE_CLIENT_ID,
+      gpsMode: "real"
+    };
+
+    let adminState = {
+      settings: { ...ADMIN_DEFAULTS },
+      userLocation: { lat: null, lng: null },
+      map: null,
+      mapCircle: null,
+      mapMarker: null,
+      watchId: null
+    };
+
+    // Helper for encryption/decryption (Hex + XOR Cipher)
+    const CRYPTO_KEY = "polban_presence_sec_2026";
+
+    function obfuscate(str) {
+      let result = "";
+      for (let i = 0; i < str.length; i++) {
+        const hex = (str.charCodeAt(i) ^ CRYPTO_KEY.charCodeAt(i % CRYPTO_KEY.length)).toString(16).padStart(2, '0');
+        result += hex;
+      }
+      return result;
+    }
+
+    function deobfuscate(hexStr) {
+      try {
+        let str = "";
+        for (let i = 0; i < hexStr.length; i += 2) {
+          const charCode = parseInt(hexStr.substr(i, 2), 16);
+          str += String.fromCharCode(charCode ^ CRYPTO_KEY.charCodeAt((i / 2) % CRYPTO_KEY.length));
+        }
+        return str;
+      } catch (e) {
+        console.error("Gagal deobfuscate:", e);
+        return null;
+      }
+    }
+
+    // ---- Authentication Gates ----
+    function checkAdminAuth() {
+      const isAuth = sessionStorage.getItem("polban_admin_auth") === "true";
+      if (isAuth) {
+        showAdminPanel();
+      } else {
+        showLoginGate();
+      }
+    }
+
+    function showAdminPanel() {
+      document.getElementById("admin-login-card").classList.add("d-none");
+      document.getElementById("admin-main-content").classList.remove("d-none");
+      document.getElementById("btn-admin-logout").classList.remove("d-none");
+      
+      // Load and render maps and settings once authenticated
+      detectStudentLink();
+      loadSettings();
+      renderAdminMap();
+      initGPS();
+    }
+
+    function showLoginGate() {
+      document.getElementById("admin-login-card").classList.remove("d-none");
+      document.getElementById("admin-main-content").classList.add("d-none");
+      document.getElementById("btn-admin-logout").classList.add("d-none");
+      
+      initAdminGoogleAuth();
+    }
+
+    // ---- Admin Google Sign-In ----
+    function initAdminGoogleAuth() {
+      const clientId = APP_CONFIG.GOOGLE_CLIENT_ID;
+      const googleSection = document.getElementById("admin-google-login-section");
+      const divider = document.getElementById("admin-login-divider");
+      
+      if (!clientId || clientId.trim() === "") {
+        googleSection.classList.add("d-none");
+        divider.classList.add("d-none");
+        return;
+      }
+      
+      googleSection.classList.remove("d-none");
+      divider.classList.remove("d-none");
+      
+      let checkCount = 0;
+      const maxChecks = 50; // 5 detik batas waktu (50 x 100ms)
+      
+      const checkInterval = setInterval(() => {
+        if (window.google && window.google.accounts && window.google.accounts.id) {
+          clearInterval(checkInterval);
+          renderAdminGoogleBtn(clientId);
+        } else {
+          checkCount++;
+          if (checkCount >= maxChecks) {
+            clearInterval(checkInterval);
+            document.getElementById("admin-google-error").innerText = "Gagal memuat Google Sign-In. Silakan gunakan password.";
+            document.getElementById("admin-google-error").classList.remove("d-none");
+          }
+        }
+      }, 100);
+    }
+
+    function renderAdminGoogleBtn(clientId) {
+      try {
+        const btnContainer = document.getElementById("admin-google-signin-btn");
+        btnContainer.innerHTML = "";
+        
+        google.accounts.id.initialize({
+          client_id: clientId,
+          callback: handleAdminGoogleResponse,
+          context: "signin",
+          ux_mode: "popup",
+          auto_prompt: false
+        });
+        
+        google.accounts.id.renderButton(
+          btnContainer,
+          { theme: "outline", size: "large", width: 280, text: "signin_with", shape: "rectangular" }
+        );
+      } catch (err) {
+        console.error("Gagal merender tombol Google Sign-In Admin:", err);
+      }
+    }
+
+    function handleAdminGoogleResponse(response) {
+      try {
+        const payload = decodeJwtResponse(response.credential);
+        const email = payload.email.toLowerCase().trim();
+        
+        // Verifikasi whitelist email admin
+        const whitelisted = APP_CONFIG.ADMIN_EMAILS || [];
+        const isWhitelisted = whitelisted.map(e => e.toLowerCase().trim()).includes(email);
+        
+        if (isWhitelisted) {
+          sessionStorage.setItem("polban_admin_auth", "true");
+          showToast("Autentikasi Berhasil!");
+          showAdminPanel();
+        } else {
+          const errorContainer = document.getElementById("admin-google-error");
+          errorContainer.innerText = `Akses ditolak: Email '${email}' tidak terdaftar sebagai Administrator.`;
+          errorContainer.classList.remove("d-none");
+        }
+      } catch (err) {
+        console.error("Gagal membaca respon Google Sign-In:", err);
+        showToast("Proses login gagal.");
+      }
+    }
+
+    function decodeJwtResponse(token) {
+      var base64Url = token.split('.')[1];
+      var base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+      var jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+          return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(''));
+
+      return JSON.parse(jsonPayload);
+    }
+
+    // ---- Fallback Password Gate ----
+    function handlePasswordLogin() {
+      const enteredPwd = document.getElementById("admin-password-input").value;
+      const adminPwd = APP_CONFIG.ADMIN_PASSWORD || "AdminPolban2026";
+      
+      if (enteredPwd === adminPwd) {
+        sessionStorage.setItem("polban_admin_auth", "true");
+        showToast("Autentikasi Berhasil!");
+        showAdminPanel();
+      } else {
+        showToast("Password yang Anda masukkan salah!");
+      }
+    }
+
+    // ---- Student Link Detection ----
+    function detectStudentLink() {
+      const currentUrl = window.location.href;
+      const studentUrl = currentUrl.replace(/admin\.html.*$/, 'index.html');
+      document.getElementById("student-link-text").innerText = studentUrl;
+    }
+
+    function copyStudentLink() {
+      const linkText = document.getElementById("student-link-text").innerText;
+      navigator.clipboard.writeText(linkText).then(() => {
+        showToast("Link mahasiswa berhasil disalin!");
+      }).catch(() => {
+        const textarea = document.createElement("textarea");
+        textarea.value = linkText;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+        showToast("Link mahasiswa berhasil disalin!");
+      });
+    }
+
+    // ---- Settings ----
+    function loadSettings() {
+      const saved = localStorage.getItem("polban_presence_settings");
+      if (saved) {
+        try {
+          let parsedSettings = null;
+          
+          // Deteksi jika data masih berformat JSON biasa dari versi sebelumnya (migrasi otomatis)
+          if (saved.trim().startsWith("{")) {
+            parsedSettings = JSON.parse(saved);
+            // Migrasikan langsung ke format ter-enkripsi
+            localStorage.setItem("polban_presence_settings", obfuscate(saved));
+          } else {
+            const decrypted = deobfuscate(saved);
+            if (decrypted) {
+              parsedSettings = JSON.parse(decrypted);
+            }
+          }
+          
+          if (parsedSettings) {
+            adminState.settings = { ...ADMIN_DEFAULTS, ...parsedSettings };
+          }
+        } catch(e) {
+          console.error("Gagal memuat konfigurasi lokal:", e);
+        }
+      }
+      document.getElementById("cfg-lat").value = adminState.settings.targetLat;
+      document.getElementById("cfg-lng").value = adminState.settings.targetLng;
+      document.getElementById("cfg-radius").value = adminState.settings.radius;
+      document.getElementById("cfg-sheet-url").value = adminState.settings.sheetUrl;
+      document.getElementById("cfg-client-id").value = adminState.settings.clientId || "";
+      updateSimBtns();
+    }
+
+    function saveEncryptedSettings() {
+      const serialized = JSON.stringify(adminState.settings);
+      localStorage.setItem("polban_presence_settings", obfuscate(serialized));
+    }
+
+    async function saveSettings() {
+      adminState.settings.targetLat = parseFloat(document.getElementById("cfg-lat").value) || ADMIN_DEFAULTS.targetLat;
+      adminState.settings.targetLng = parseFloat(document.getElementById("cfg-lng").value) || ADMIN_DEFAULTS.targetLng;
+      adminState.settings.radius = parseFloat(document.getElementById("cfg-radius").value) || ADMIN_DEFAULTS.radius;
+      adminState.settings.sheetUrl = document.getElementById("cfg-sheet-url").value.trim();
+      adminState.settings.clientId = document.getElementById("cfg-client-id").value.trim();
+      
+      saveEncryptedSettings();
+      renderAdminMap();
+
+      if (adminState.settings.sheetUrl) {
+        showToast("Menyinkronkan pengaturan ke Cloud...");
+        try {
+          const payload = {
+            action: "saveSettings",
+            password: APP_CONFIG.ADMIN_PASSWORD || "AdminPolban2026*",
+            settings: {
+              TARGET_LAT: adminState.settings.targetLat,
+              TARGET_LNG: adminState.settings.targetLng,
+              RADIUS_METER: adminState.settings.radius,
+              GOOGLE_CLIENT_ID: adminState.settings.clientId
+            }
+          };
+
+          const response = await fetch(adminState.settings.sheetUrl, {
+            method: "POST",
+            mode: "cors",
+            headers: {
+              "Content-Type": "text/plain"
+            },
+            body: JSON.stringify(payload)
+          });
+          const result = await response.json();
+          if (result.status === "success") {
+            showToast("Pengaturan berhasil disimpan ke Cloud!");
+          } else {
+            showToast("Gagal menyimpan ke Cloud: " + result.message);
+          }
+        } catch (err) {
+          console.warn("CORS error, mencoba mode fallback...", err);
+          try {
+            const payload = {
+              action: "saveSettings",
+              password: APP_CONFIG.ADMIN_PASSWORD || "AdminPolban2026*",
+              settings: {
+                TARGET_LAT: adminState.settings.targetLat,
+                TARGET_LNG: adminState.settings.targetLng,
+                RADIUS_METER: adminState.settings.radius,
+                GOOGLE_CLIENT_ID: adminState.settings.clientId
+              }
+            };
+            await fetch(adminState.settings.sheetUrl, {
+              method: "POST",
+              mode: "no-cors",
+              headers: { "Content-Type": "text/plain" },
+              body: JSON.stringify(payload)
+            });
+            showToast("Pengaturan berhasil disimpan ke Cloud!");
+          } catch (err2) {
+            console.error("Gagal sinkronisasi cloud:", err2);
+            showToast("Gagal menyinkronkan ke Cloud. Tersimpan lokal.");
+          }
+        }
+      } else {
+        showToast("Pengaturan berhasil disimpan secara lokal!");
+      }
+    }
+
+    // ---- Simulation Buttons ----
+    function updateSimBtns() {
+      ["sim-gps-real","sim-gps-inside","sim-gps-outside"].forEach(id => document.getElementById(id).classList.remove("active"));
+      if (adminState.settings.gpsMode === "real") document.getElementById("sim-gps-real").classList.add("active");
+      else if (adminState.settings.gpsMode === "inside") document.getElementById("sim-gps-inside").classList.add("active");
+      else if (adminState.settings.gpsMode === "outside") document.getElementById("sim-gps-outside").classList.add("active");
+    }
+
+    function setSimMode(mode) {
+      adminState.settings.gpsMode = mode;
+      saveEncryptedSettings();
+      updateSimBtns();
+      showToast(mode === "real" ? "GPS Asli Aktif" : mode === "inside" ? "Simulasi Dalam Area" : "Simulasi Luar Area");
+    }
+
+    // ---- Map ----
+    function renderAdminMap() {
+      const lat = adminState.settings.targetLat;
+      const lng = adminState.settings.targetLng;
+      const radius = adminState.settings.radius;
+
+      if (!adminState.map) {
+        adminState.map = L.map("admin-map", { zoomControl: true, scrollWheelZoom: false });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          attribution: "&copy; OpenStreetMap"
+        }).addTo(adminState.map);
+      }
+
+      if (adminState.mapCircle) adminState.map.removeLayer(adminState.mapCircle);
+      if (adminState.mapMarker) adminState.map.removeLayer(adminState.mapMarker);
+
+      adminState.mapCircle = L.circle([lat, lng], {
+        color: "hsl(174, 75%, 38%)", fillColor: "hsl(174, 75%, 38%)", fillOpacity: 0.2, radius: radius
+      }).addTo(adminState.map);
+
+      const icon = L.divIcon({
+        html: '<div style="background: hsl(174, 75%, 38%); color: white; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 10px rgba(0,0,0,0.3); border: 2px solid white;"><i class="fa-solid fa-mosque"></i></div>',
+        className: "custom-div-icon", iconSize: [32, 32], iconAnchor: [16, 16]
+      });
+      adminState.mapMarker = L.marker([lat, lng], { icon }).addTo(adminState.map).bindPopup("<b>Masjid Luqmanul Hakim POLBAN</b><br>Area Presensi Resmi").openPopup();
+      adminState.map.setView([lat, lng], 17);
+    }
+
+    // ---- GPS for "Set Current Location" ----
+    function initGPS() {
+      if ("geolocation" in navigator) {
+        adminState.watchId = navigator.geolocation.watchPosition(
+          (pos) => { adminState.userLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude }; },
+          () => {}, { enableHighAccuracy: true }
+        );
+      }
+    }
+
+    // ---- Toast ----
+    function showToast(msg) {
+      const t = document.getElementById("toast");
+      document.getElementById("toast-message").innerText = msg;
+      t.classList.add("show");
+      setTimeout(() => t.classList.remove("show"), 3000);
+    }
+
+    // ---- Event Bindings ----
+    document.addEventListener("DOMContentLoaded", () => {
+      // Periksa status login terlebih dahulu
+      checkAdminAuth();
+
+      // Setup event login password
+      document.getElementById("btn-admin-login-pwd").addEventListener("click", handlePasswordLogin);
+      document.getElementById("admin-password-input").addEventListener("keypress", (e) => {
+        if (e.key === "Enter") {
+          handlePasswordLogin();
+        }
+      });
+
+      // Setup event logout
+      document.getElementById("btn-admin-logout").addEventListener("click", () => {
+        sessionStorage.removeItem("polban_admin_auth");
+        showToast("Anda telah keluar dari Panel Admin");
+        showLoginGate();
+        document.getElementById("admin-password-input").value = "";
+      });
+
+      // Setup event-event panel admin utama
+      document.getElementById("btn-save-settings").addEventListener("click", saveSettings);
+      
+      document.getElementById("btn-save-auth").addEventListener("click", saveSettings);
+      
+      document.getElementById("btn-save-sheet-url").addEventListener("click", saveSettings);
+
+      document.getElementById("sim-gps-real").addEventListener("click", () => setSimMode("real"));
+      document.getElementById("sim-gps-inside").addEventListener("click", () => setSimMode("inside"));
+      document.getElementById("sim-gps-outside").addEventListener("click", () => setSimMode("outside"));
+
+      document.getElementById("btn-set-current-target").addEventListener("click", () => {
+        if (adminState.userLocation.lat && adminState.userLocation.lng) {
+          document.getElementById("cfg-lat").value = adminState.userLocation.lat.toFixed(6);
+          document.getElementById("cfg-lng").value = adminState.userLocation.lng.toFixed(6);
+          saveSettings();
+          showToast("Pusat target diatur ke lokasi Anda!");
+        } else {
+          showToast("Gagal membaca lokasi Anda. Pastikan izin GPS aktif.");
+        }
+      });
+    });
+  </script>
+</body>
+</html>
