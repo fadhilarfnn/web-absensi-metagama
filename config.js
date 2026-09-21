@@ -30,11 +30,11 @@ const APP_CONFIG = {
 
   // ======== 3. LOKASI TARGET GEOFENCING ========
   // Koordinat pusat area presensi (Masjid Luqmanul Hakim POLBAN)
-  TARGET_LAT: -6.872000,
-  TARGET_LNG: 107.573700,
+  TARGET_LAT: -6.872878,
+  TARGET_LNG: 107.5672064,
 
   // Radius dalam meter. Mahasiswa harus berada dalam jarak ini untuk bisa mengisi form.
-  RADIUS_METER: 50,
+  RADIUS_METER: 100,
 
   // ======== 4. INFO TAMPILAN ========
   // Nama lokasi yang ditampilkan di UI
